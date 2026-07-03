@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -34,6 +35,31 @@ from src.reader import scan
 from src.preprocessor import preprocess
 from src.chunking import ChunkingEngine
 from src.analyzer import Config, MapReduceAnalyzer
+
+
+def clone_repo(url: str, target: Path) -> Path:
+    """Clone a git repo (shallow). Skip if already present."""
+    if target.exists() and any(target.iterdir()):
+        print(f"  Repository already cloned: {target}")
+        return target
+    target.mkdir(parents=True, exist_ok=True)
+    print(f"  Cloning {url} -> {target}")
+    subprocess.run(
+        ["git", "clone", "--depth=1", url, str(target)],
+        check=True,
+        capture_output=True,
+        text=True,
+        shell=sys.platform == "win32",
+    )
+    print(f"  Cloned successfully")
+    return target
+
+
+def is_empty_dir(path: Path) -> bool:
+    """Check if directory doesn't exist or has no files."""
+    if not path.exists():
+        return True
+    return not any(path.iterdir())
 
 
 def load_config() -> dict:
@@ -71,14 +97,44 @@ def main():
     concurrency = int(cfg.get("max_concurrent", 5))
     chunk_tokens = int(cfg.get("max_chunk_tokens", 4000))
 
-    # Default codebase
-    if not codebase_path:
-        codebase_path = "/home/user/spring-rest-sakila"
-        repo_url = repo_url or "https://github.com/codejsha/spring-rest-sakila"
+    # ── Resolve codebase path ──
+    # Case 1: codebase_path is empty/none -> default to repos/<name>/ and clone
+    # Case 2: codebase_path is set but empty dir -> clone into it
+    # Case 3: codebase_path is set and has files -> use as-is
+
+    path_is_none = not codebase_path or codebase_path.lower() in ("none", "null", "")
+    path = Path(codebase_path) if not path_is_none else None
+
+    if path_is_none:
+        # Case 1: no path given -> derive from repo_url and clone
+        if repo_url:
+            repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
+            path = Path(__file__).parent / "repos" / repo_name
+        else:
+            # No path and no URL -> fallback to Sakila
+            path = Path("/home/user/spring-rest-sakila")
+            repo_url = "https://github.com/codejsha/spring-rest-sakila"
+        codebase_path = str(path)
+        if repo_url and not (path.exists() and any(path.iterdir() if path.exists() else [])):
+            clone_repo(repo_url, path)
+
+    elif is_empty_dir(path):
+        # Case 2: path set but directory is empty -> clone into it
+        if not repo_url:
+            print(f"ERROR: {codebase_path} is empty and no CODEBASE_REPO_URL set to clone from")
+            sys.exit(1)
+        path.mkdir(parents=True, exist_ok=True)
+        clone_repo(repo_url, path)
+
+    else:
+        # Case 3: path exists and has files -> use as-is
+        pass
+
+    codebase_path = str(path)
 
     if not Path(codebase_path).exists():
         print(f"ERROR: Path not found: {codebase_path}")
-        print(f"       Set CODEBASE_PATH in .env")
+        print(f"       Set CODEBASE_PATH or CODEBASE_REPO_URL in .env")
         sys.exit(1)
 
     # API key
