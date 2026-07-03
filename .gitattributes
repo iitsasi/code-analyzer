@@ -1,0 +1,34 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Explicitly declare text files
+*.py text
+*.java text
+*.go text
+*.js text
+*.ts text
+*.jsx text
+*.tsx text
+*.md text
+*.yaml text
+*.yml text
+*.json text
+*.toml text
+*.properties text
+*.xml text
+*.txt text
+*.sh text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Declare files that will always have CRLF line endings on checkout
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+
+# Denote files that are truly binary
+*.class binary
+*.pyc binary
+*.so binary
+*.dll binary
+*.exe binary
