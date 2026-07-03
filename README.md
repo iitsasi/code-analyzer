@@ -239,7 +239,7 @@ CODEBASE_REPO_URL=https://github.com/codejsha/spring-rest-sakila
 CODEBASE_MOCK=true
 
 # OpenAI API key (only needed when CODEBASE_MOCK=false)
-# OPENAI_API_KEY=sk-proj-...
+OPENAI_API_KEY=sk-proj-...
 ```
 
 | `.env` Variable | Purpose | Default |
